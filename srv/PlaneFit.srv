@@ -1,0 +1,12 @@
+---
+# coefficients of the plane
+# p0*x + p1*y + p2*z + p3 = 0
+float32 p0
+float32 p1
+float32 p2
+float32 p3
+# transformation matrix for cuboid
+geometry_msgs/Pose pose
+# bounding box min and max
+geometry_msgs/Vector3 bb_min
+geometry_msgs/Vector3 bb_max
