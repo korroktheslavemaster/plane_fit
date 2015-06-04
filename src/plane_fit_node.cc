@@ -105,7 +105,7 @@ bool plane_fitting(plane_fit::PlaneFit::Request &req,
   // find the rotation matrix for the normal of the plane
   Eigen::Vector3d normal(plane[0], plane[1], plane[2]);
   normal = normal / sqrt(normal.dot(normal));
-  Eigen::Vector3d unit_std(0, 1, 0);
+  Eigen::Vector3d unit_std(0, 0, 1);
   // need quaternion representation
   Eigen::Quaterniond R_q;
   R_q.setFromTwoVectors(unit_std, normal);
@@ -119,7 +119,7 @@ bool plane_fitting(plane_fit::PlaneFit::Request &req,
 
   // bounding box halflens
   double x_half_len = 1.8/2.;
-  double z_half_len = .75/2.;
+  double y_half_len = .75/2.;
   // write everything into response
   {
     Eigen::Vector3d t = T.translation();
@@ -133,11 +133,11 @@ bool plane_fitting(plane_fit::PlaneFit::Request &req,
     res.pose.orientation.w = R_q.w();
 
     res.bb_min.x = -x_half_len;
-    res.bb_min.z = -z_half_len;
-    res.bb_min.y = 0;
+    res.bb_min.y = -y_half_len;
+    res.bb_min.z = 0;
     res.bb_max.x = x_half_len;
-    res.bb_max.z = z_half_len;
-    res.bb_max.y = 0;
+    res.bb_max.y = y_half_len;
+    res.bb_max.z = 0;
   }
   
   ROS_INFO("sending back response (plane): [%lf] [%lf] [%lf] [%lf]", 
@@ -174,10 +174,10 @@ bool plane_fitting(plane_fit::PlaneFit::Request &req,
   // now generate corners of the cuboid, and draw them...
   // first just try drawing a rectangle on the plane, centred on centroid
   
-  SpaceCoord p1(x_half_len, 0, z_half_len, 1);
-  SpaceCoord p2(-x_half_len, 0, z_half_len, 1);
-  SpaceCoord p3(-x_half_len, 0, -z_half_len, 1);
-  SpaceCoord p4(x_half_len, 0, -z_half_len, 1);
+  SpaceCoord p1(x_half_len, y_half_len, 0, 1);
+  SpaceCoord p2(-x_half_len, y_half_len, 0, 1);
+  SpaceCoord p3(-x_half_len, -y_half_len, 0, 1);
+  SpaceCoord p4(x_half_len, -y_half_len, 0, 1);
 
   {
       cv::Point p1_ = SpaceCoordToPoint(final_transform * p1, intrinsics);
