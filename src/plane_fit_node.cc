@@ -180,15 +180,53 @@ bool plane_fitting(plane_fit::PlaneFit::Request &req,
   SpaceCoord p4(x_half_len, -y_half_len, 0, 1);
 
   {
-      cv::Point p1_ = SpaceCoordToPoint(final_transform * p1, intrinsics);
-      cv::Point p2_ = SpaceCoordToPoint(final_transform * p2, intrinsics);
-      cv::Point p3_ = SpaceCoordToPoint(final_transform * p3, intrinsics);
-      cv::Point p4_ = SpaceCoordToPoint(final_transform * p4, intrinsics);
-      cv::Scalar color(255, 200, 0);
-      cv::line(displayImage, p1_, p2_, color);
-      cv::line(displayImage, p2_, p3_, color);
-      cv::line(displayImage, p3_, p4_, color);
-      cv::line(displayImage, p4_, p1_, color);
+    cv::Point p1_ = SpaceCoordToPoint(final_transform * p1, intrinsics);
+    cv::Point p2_ = SpaceCoordToPoint(final_transform * p2, intrinsics);
+    cv::Point p3_ = SpaceCoordToPoint(final_transform * p3, intrinsics);
+    cv::Point p4_ = SpaceCoordToPoint(final_transform * p4, intrinsics);
+    cv::Scalar color(255, 200, 0);
+    cv::line(displayImage, p1_, p2_, color);
+    cv::line(displayImage, p2_, p3_, color);
+    cv::line(displayImage, p3_, p4_, color);
+    cv::line(displayImage, p4_, p1_, color);
+  }
+  {
+    // draw another rectangle with z displacement
+    p1.z() += 0.2; p2.z() += 0.2; p3.z() += 0.2; p4.z() += 0.2;
+
+    cv::Point p1_ = SpaceCoordToPoint(final_transform * p1, intrinsics);
+    cv::Point p2_ = SpaceCoordToPoint(final_transform * p2, intrinsics);
+    cv::Point p3_ = SpaceCoordToPoint(final_transform * p3, intrinsics);
+    cv::Point p4_ = SpaceCoordToPoint(final_transform * p4, intrinsics);
+    cv::Scalar color(255, 200, 0);
+    cv::line(displayImage, p1_, p2_, color);
+    cv::line(displayImage, p2_, p3_, color);
+    cv::line(displayImage, p3_, p4_, color);
+    cv::line(displayImage, p4_, p1_, color);
+  }
+  {
+    // draw connecting lines between rectangles
+    SpaceCoord p1_orig = p1; p1_orig.z() -= 0.2;
+    SpaceCoord p2_orig = p2; p2_orig.z() -= 0.2;
+    SpaceCoord p3_orig = p3; p3_orig.z() -= 0.2;
+    SpaceCoord p4_orig = p4; p4_orig.z() -= 0.2;
+
+    cv::Point p1_ = SpaceCoordToPoint(final_transform * p1, intrinsics);
+    cv::Point p2_ = SpaceCoordToPoint(final_transform * p2, intrinsics);
+    cv::Point p3_ = SpaceCoordToPoint(final_transform * p3, intrinsics);
+    cv::Point p4_ = SpaceCoordToPoint(final_transform * p4, intrinsics);
+
+    cv::Point p1_orig_ = SpaceCoordToPoint(final_transform * p1_orig, intrinsics);
+    cv::Point p2_orig_ = SpaceCoordToPoint(final_transform * p2_orig, intrinsics);
+    cv::Point p3_orig_ = SpaceCoordToPoint(final_transform * p3_orig, intrinsics);
+    cv::Point p4_orig_ = SpaceCoordToPoint(final_transform * p4_orig, intrinsics);
+
+    cv::Scalar color(255, 200, 0);
+    cv::line(displayImage, p1_, p1_orig_, color);
+    cv::line(displayImage, p2_, p2_orig_, color);
+    cv::line(displayImage, p3_, p3_orig_, color);
+    cv::line(displayImage, p4_, p4_orig_, color);
+
   }
   float plane_norm = sqrt(plane[0] * plane[0] +
                     plane[1] * plane[1] +
