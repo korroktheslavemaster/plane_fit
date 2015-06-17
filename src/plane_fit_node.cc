@@ -7,6 +7,7 @@
 #include <cv_bridge/cv_bridge.h>
 
 #include "plane_fit.h"
+#include "detect_table.h"
 #include "depth.h"
 
 #include "plane_fit/PlaneFit.h"
@@ -17,12 +18,12 @@
 #include <Eigen/Geometry>
 
 cv::Point ImCoordToPoint(const ImCoord &ic) {
-    assert(ic[2] != 0);
-    return cv::Point(ic[0]/ic[2], ic[1]/ic[2]);
+  assert(ic[2] != 0);
+  return cv::Point(ic[0]/ic[2], ic[1]/ic[2]);
 }
 
 cv::Point SpaceCoordToPoint(const SpaceCoord &sc, const Intrinsics &in) {
-    return ImCoordToPoint(in * sc);
+  return ImCoordToPoint(in * sc);
 }
 
 cv::Mat currentDepthImage;
@@ -38,6 +39,10 @@ namespace Constants {
   int ransac_iters = 400;
   float min_distance = 0.25;
   float max_distance = 1.0;
+
+  // table dimension halflens
+  double x_half_len = 1.8/2.;
+  double y_half_len = .75/2.;
 }
 
 void depthImageCallback(const sensor_msgs::ImageConstPtr& msg)
@@ -66,12 +71,12 @@ void colorImageCallback(const sensor_msgs::ImageConstPtr& msg)
 // Callback for camera info
 void cameraInfoCallback(const sensor_msgs::CameraInfoConstPtr& camera_info)
 {
-    currentCameraInfo = (*camera_info);
-    has_camera_info_ = true;
+  currentCameraInfo = (*camera_info);
+  has_camera_info_ = true;
 }
 
 bool plane_fitting(plane_fit::PlaneFit::Request &req,
-         plane_fit::PlaneFit::Response &res)
+ plane_fit::PlaneFit::Response &res)
 {
   using namespace Constants;
   ROS_INFO("request: received");
@@ -82,18 +87,20 @@ bool plane_fitting(plane_fit::PlaneFit::Request &req,
   SpaceCoord plane_centroid;
   Intrinsics intrinsics;
   intrinsics << currentCameraInfo.K[0], 0., currentCameraInfo.K[2], 0.,
-                0., currentCameraInfo.K[4], currentCameraInfo.K[5], 0.,
-                0., 0., 1., 0.;
+  0., currentCameraInfo.K[4], currentCameraInfo.K[5], 0.,
+  0., 0., 1., 0.;
 
+  vector<SpaceCoord> plane_points;
   SpaceCoord plane = PlaneFitDepthImage(
-          currentDepthImage,
-          intrinsics,
-          step,
-          ransac_iters,
-          tolerance,
-          min_distance,
-          max_distance,
-          plane_centroid);
+    currentDepthImage,
+    intrinsics,
+    step,
+    ransac_iters,
+    tolerance,
+    min_distance,
+    max_distance,
+    plane_centroid,
+    &plane_points);
 
   res.p0 = plane[0];
   res.p1 = plane[1];
@@ -105,7 +112,7 @@ bool plane_fitting(plane_fit::PlaneFit::Request &req,
   // find the rotation matrix for the normal of the plane
   Eigen::Vector3d normal(plane[0], plane[1], plane[2]);
   normal = normal / sqrt(normal.dot(normal));
-  Eigen::Vector3d unit_std(0, 0, 1);
+  Eigen::Vector3d unit_std(0, 0, -1);
   // need quaternion representation
   Eigen::Quaterniond R_q;
   R_q.setFromTwoVectors(unit_std, normal);
@@ -114,19 +121,26 @@ bool plane_fitting(plane_fit::PlaneFit::Request &req,
   Pose T;
   T.setIdentity();
   T.translation() = Eigen::Vector3d(plane_centroid[0]/plane_centroid[3],
-      plane_centroid[1]/plane_centroid[3], 
-      plane_centroid[2]/plane_centroid[3]);
+    plane_centroid[1]/plane_centroid[3], 
+    plane_centroid[2]/plane_centroid[3]);
 
-  // bounding box halflens
-  double x_half_len = 1.8/2.;
-  double y_half_len = .75/2.;
+  Pose R(R_q);
+  Pose final_transform = T * R;
+
+  // apply table detection to get best pose for table
+  // final_transform = getBestTable(final_transform, plane_points, x_half_len, 
+  //   y_half_len);
+  final_transform = getBestTableOpt(final_transform, plane_points, x_half_len, 
+    y_half_len);
+
   // write everything into response
   {
-    Eigen::Vector3d t = T.translation();
+    Eigen::Vector3d t = final_transform.translation();
     res.pose.position.x = t.x();
     res.pose.position.y = t.y();
     res.pose.position.z = t.z();
     
+    Eigen::Quaterniond R_q(final_transform.rotation());
     res.pose.orientation.x = R_q.x();
     res.pose.orientation.y = R_q.y();
     res.pose.orientation.z = R_q.z();
@@ -149,7 +163,7 @@ bool plane_fitting(plane_fit::PlaneFit::Request &req,
   // draw a circle at centroid
   ImCoord centroid = intrinsics * plane_centroid;
   cv::circle(displayImage, cv::Point(centroid[0]/centroid[2], 
-      centroid[1]/centroid[2]), 10, cv::Scalar(255,0,0));
+    centroid[1]/centroid[2]), 10, cv::Scalar(255,0,0));
   // make some lines on the x, y, z directions to get an idea of orientation
   // around the centroid
   SpaceCoord xpoint = plane_centroid; xpoint[0] += 0.2*xpoint[3];
@@ -157,20 +171,24 @@ bool plane_fitting(plane_fit::PlaneFit::Request &req,
   SpaceCoord zpoint = plane_centroid; zpoint[2] += 0.2*zpoint[3];
 
   cv::line(displayImage, SpaceCoordToPoint(plane_centroid, intrinsics), 
-      SpaceCoordToPoint(xpoint, intrinsics), cv::Scalar(255,0,0));
+    SpaceCoordToPoint(xpoint, intrinsics), cv::Scalar(255,0,0));
 
 
   cv::line(displayImage, SpaceCoordToPoint(plane_centroid, intrinsics), 
-      SpaceCoordToPoint(ypoint, intrinsics), cv::Scalar(0,255,0));
+    SpaceCoordToPoint(ypoint, intrinsics), cv::Scalar(0,255,0));
 
 
   cv::line(displayImage, SpaceCoordToPoint(plane_centroid, intrinsics), 
-      SpaceCoordToPoint(zpoint, intrinsics), cv::Scalar(0,0,255));
+    SpaceCoordToPoint(zpoint, intrinsics), cv::Scalar(0,0,255));
 
-  // final transform matrix
-  Pose R(R_q);
-  Pose final_transform = T * R;
-
+  // draw a circle at (0,0,0) with final_transform to verify that transform is
+  // correct (circle shoudl coincide with the earlier circle around centroid)
+  {
+    SpaceCoord centre(0,0,0,1);
+    cv::Point centre_ = SpaceCoordToPoint(final_transform * centre, intrinsics);
+    cv::Scalar color(255, 0, 200);
+    cv::circle(displayImage, centre_, 10, color);    
+  }
   // now generate corners of the cuboid, and draw them...
   // first just try drawing a rectangle on the plane, centred on centroid
   
@@ -178,6 +196,7 @@ bool plane_fitting(plane_fit::PlaneFit::Request &req,
   SpaceCoord p2(-x_half_len, y_half_len, 0, 1);
   SpaceCoord p3(-x_half_len, -y_half_len, 0, 1);
   SpaceCoord p4(x_half_len, -y_half_len, 0, 1);
+
 
   {
     cv::Point p1_ = SpaceCoordToPoint(final_transform * p1, intrinsics);
@@ -229,8 +248,8 @@ bool plane_fitting(plane_fit::PlaneFit::Request &req,
 
   }
   float plane_norm = sqrt(plane[0] * plane[0] +
-                    plane[1] * plane[1] +
-                    plane[2] * plane[2]);
+    plane[1] * plane[1] +
+    plane[2] * plane[2]);
   image_color inlier_color(0,0,255);
   
   for(size_t j =0; j < currentDepthImage.rows; j+=step){
@@ -263,12 +282,12 @@ int main(int argc, char **argv)
   image_transport::ImageTransport depth_it(nh);
   // rename the image topic before using
   image_transport::Subscriber depth_sub = 
-    depth_it.subscribe("depth_image", 1, depthImageCallback);  
+  depth_it.subscribe("depth_image", 1, depthImageCallback);  
   
   image_transport::ImageTransport color_it(nh);
   // rename the image topic before using
   image_transport::Subscriber color_sub = 
-    color_it.subscribe("color_image", 1, colorImageCallback);
+  color_it.subscribe("color_image", 1, colorImageCallback);
 
   // camera_info topic, rename this too
   ros::Subscriber info_subscriber = nh.subscribe("camera_info", 10, 

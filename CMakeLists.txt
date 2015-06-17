@@ -2,8 +2,10 @@ cmake_minimum_required(VERSION 2.8.3)
 project(plane_fit)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
-
+message("module path = ${CMAKE_MODULE_PATH}")
 find_package( OpenCV REQUIRED )
+find_package( GSL REQUIRED )
+include_directories(${GSL_INCLUDE_DIRS} ${GSLCBLAS_INCLUDE_DIRS})
 # just setting the variables used for eigen
 set(EIGEN_INCLUDE_DIR "/usr/include/eigen3")
 find_package( Boost COMPONENTS program_options REQUIRED )
@@ -35,10 +37,12 @@ set(SHARED_SRC
     src/camera.cc
     src/depth.cc
     src/units.cc
+    src/detect_table.cc
     include/plane_fit/units.h
     include/plane_fit/camera.h
     include/plane_fit/depth.h
     include/plane_fit/plane_fit.h
+    include/plane_fit/detect_table.h
 )
 
 ## System dependencies are found with CMake's conventions
@@ -234,7 +238,11 @@ add_executable( test_plane_fit ${TESTPLANEFIT_SRC} )
 target_link_libraries( test_plane_fit ${OpenCV_LIBS} )
 target_link_libraries( test_plane_fit ${EIGEN_LIBS} )
 target_link_libraries( test_plane_fit ${Boost_LIBRARIES} )
-target_link_libraries( test_plane_fit ${YAMLCPP_LIBRARY} )
+target_link_libraries( test_plane_fit ${YAMLCPP_LIBRARY}  ${GSL_LIBRARIES} ${GSLCBLAS_LIBRARIES})
+
+set( TABLEEDGEDETECT src/table_edge_detect.cc)
+add_executable( table_edge_detect ${TABLEEDGEDETECT} )
+target_link_libraries( table_edge_detect ${OpenCV_LIBS} ${GSL_LIBRARIES} ${GSLCBLAS_LIBRARIES})
 
 set( PLANEFIT_NODE_SRC src/plane_fit_node.cc ${SHARED_SRC} )
 add_executable(plane_fit_node ${PLANEFIT_NODE_SRC})
@@ -242,5 +250,12 @@ target_link_libraries(plane_fit_node ${catkin_LIBRARIES})
 target_link_libraries( plane_fit_node ${OpenCV_LIBS} )
 target_link_libraries( plane_fit_node ${EIGEN_LIBS} )
 target_link_libraries( plane_fit_node ${Boost_LIBRARIES} )
-target_link_libraries( plane_fit_node ${YAMLCPP_LIBRARY} )
+target_link_libraries( plane_fit_node ${YAMLCPP_LIBRARY} ${GSL_LIBRARIES} ${GSLCBLAS_LIBRARIES} )
 add_dependencies(plane_fit_node plane_fit_generate_messages_cpp)
+
+set( DETECT_TABLE_TEST src/detect_table_test.cc ${SHARED_SRC} )
+add_executable( detect_table_test ${DETECT_TABLE_TEST} )
+target_link_libraries( detect_table_test ${OpenCV_LIBS} )
+target_link_libraries( detect_table_test ${EIGEN_LIBS} )
+target_link_libraries( detect_table_test ${Boost_LIBRARIES} )
+target_link_libraries( detect_table_test ${YAMLCPP_LIBRARY} ${GSL_LIBRARIES} ${GSLCBLAS_LIBRARIES})
