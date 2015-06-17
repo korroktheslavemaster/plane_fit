@@ -160,8 +160,11 @@ bool plane_fitting(plane_fit::PlaneFit::Request &req,
   
   ROS_INFO("sending back response (plane): [%lf] [%lf] [%lf] [%lf]", 
     res.p0, res.p1, res.p2, res.p3);
+
+
+  
   // debugging purpose: show the plane on an rgb image.
-  cv::Mat displayImage = currentColorImage.clone();
+  /*cv::Mat displayImage = currentColorImage.clone();
   cv::resize(displayImage, displayImage, currentDepthImage.size());
   
   // draw a circle at centroid
@@ -275,7 +278,7 @@ bool plane_fitting(plane_fit::PlaneFit::Request &req,
   cv::startWindowThread();
   cv::imshow("view", displayImage);
   cv::waitKey(0);
-  cv::destroyWindow("view");
+  cv::destroyWindow("view");*/
   return true;
 }
 
