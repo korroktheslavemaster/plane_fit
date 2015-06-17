@@ -40,9 +40,9 @@ namespace Constants {
   float min_distance = 0.25;
   float max_distance = 1.0;
 
-  // table dimension halflens
-  double x_half_len = 1.8/2.;
-  double y_half_len = .75/2.;
+  // table dimension halflens default
+  double x_half_len_default = 1.8/2.;
+  double y_half_len_default = .75/2.;
 }
 
 void depthImageCallback(const sensor_msgs::ImageConstPtr& msg)
@@ -84,6 +84,10 @@ bool plane_fitting(plane_fit::PlaneFit::Request &req,
     ROS_INFO("did not have camera_info ready!");
     return false;
   }
+  // get table dimensions from request
+  double x_half_len = req.x_half_len > 0? req.x_half_len: x_half_len_default;
+  double y_half_len = req.y_half_len > 0? req.y_half_len: y_half_len_default;
+
   SpaceCoord plane_centroid;
   Intrinsics intrinsics;
   intrinsics << currentCameraInfo.K[0], 0., currentCameraInfo.K[2], 0.,
